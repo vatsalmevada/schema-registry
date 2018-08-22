@@ -663,6 +663,36 @@ public class SchemaRegistryConfig extends RestConfig {
     return getString(INTER_INSTANCE_PROTOCOL_CONFIG);
   }
 
+  public ZkUtils zkUtils() {
+    boolean zkAclsEnabled = checkZkAclConfig();
+    String srZkNamespace = getString(SchemaRegistryConfig.SCHEMAREGISTRY_ZK_NAMESPACE);
+    String srClusterZkUrl = getString(SchemaRegistryConfig.KAFKASTORE_CONNECTION_URL_CONFIG);
+    int zkSessionTimeoutMs = getInt(SchemaRegistryConfig.KAFKASTORE_ZK_SESSION_TIMEOUT_MS_CONFIG);
+
+    int kafkaNamespaceIndex = srClusterZkUrl.indexOf("/");
+    String zkConnForNamespaceCreation = kafkaNamespaceIndex > 0
+        ? srClusterZkUrl.substring(0, kafkaNamespaceIndex)
+        : srClusterZkUrl;
+
+    final String schemaRegistryNamespace = "/" + srZkNamespace;
+    final String schemaRegistryZkUrl = zkConnForNamespaceCreation + schemaRegistryNamespace;
+
+    ZkUtils zkUtilsForNamespaceCreation = ZkUtils.apply(
+        zkConnForNamespaceCreation, zkSessionTimeoutMs, zkSessionTimeoutMs, zkAclsEnabled);
+    zkUtilsForNamespaceCreation.makeSurePersistentPathExists(
+        schemaRegistryNamespace,
+        zkUtilsForNamespaceCreation.defaultAcls(schemaRegistryNamespace));
+    log.info("Created schema registry namespace {} {}" ,
+        zkConnForNamespaceCreation , schemaRegistryNamespace);
+    zkUtilsForNamespaceCreation.close();
+    return ZkUtils.apply(
+        schemaRegistryZkUrl,
+        zkSessionTimeoutMs,
+        zkSessionTimeoutMs,
+        zkAclsEnabled
+    );
+  }
+
   public static void main(String[] args) {
     System.out.println(config.toRst());
   }
