@@ -42,7 +42,7 @@ public class ZookeeperIdGenerator implements IdGenerator {
   private int nextAvailableSchemaId;
   // Tracks the upper bound of the current id batch (inclusive). When nextAvailableSchemaId goes
   // above this value, it's time to allocate a new batch of ids
-  private int idBatchInclusiveUpperBound;
+  private int idBatchInclusiveUpperBound = -2;
   private int maxIdInKafkaStore = -1;
 
 
@@ -50,9 +50,7 @@ public class ZookeeperIdGenerator implements IdGenerator {
   public int id(String subject, Schema schema) throws IdGenerationException {
     int id = nextAvailableSchemaId;
     nextAvailableSchemaId++;
-    if (reachedEndOfIdBatch()) {
-      init();
-    }
+    init();
     return id;
   }
 
@@ -63,9 +61,11 @@ public class ZookeeperIdGenerator implements IdGenerator {
 
   @Override
   public void init() throws IdGenerationException {
-    SchemaIdRange nextRange = nextRange();
-    nextAvailableSchemaId = nextRange.base();
-    idBatchInclusiveUpperBound = nextRange.end();
+    if (reachedEndOfIdBatch()) {
+      SchemaIdRange nextRange = nextRange();
+      nextAvailableSchemaId = nextRange.base();
+      idBatchInclusiveUpperBound = nextRange.end();
+    }
   }
 
   @Override
